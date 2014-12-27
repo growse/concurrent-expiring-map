@@ -1,7 +1,8 @@
 package cmap
 
 import (
-	"encoding/json"
+	//	"encoding/json"
+	"encoding/binary"
 	"sort"
 	"strconv"
 	"testing"
@@ -9,6 +10,15 @@ import (
 
 type Animal struct {
 	name string
+}
+
+func (a *Animal) MarshalBinary() (data []byte, err error) {
+	return []byte(a.name), nil
+}
+
+func (a *Animal) UnmarshalBinary(data []byte) error {
+	a.name = string(data)
+	return nil
 }
 
 func TestMapCreation(t *testing.T) {
@@ -26,9 +36,10 @@ func TestInsert(t *testing.T) {
 	m := New()
 	elephant := Animal{"elephant"}
 	monkey := Animal{"monkey"}
-
-	m.Set("elephant", elephant)
-	m.Set("monkey", monkey)
+	bytes, _ := elephant.MarshalBinary()
+	m.Set("elephant", bytes)
+	bytes, _ = monkey.MarshalBinary()
+	m.Set("monkey", bytes)
 
 	if m.Count() != 2 {
 		t.Error("map should contain exactly two elements.")
@@ -45,17 +56,18 @@ func TestGet(t *testing.T) {
 		t.Error("ok should be false when item is missing from map.")
 	}
 
-	if val != nil {
-		t.Error("Missing values should return as null.")
+	if len(val) != 0 {
+		t.Errorf("Missing values should return as null. Instead got %v", val)
 	}
 
 	elephant := Animal{"elephant"}
-	m.Set("elephant", elephant)
+	bytes, _ := elephant.MarshalBinary()
+	m.Set("elephant", bytes)
 
 	// Retrieve inserted element.
 
 	tmp, ok := m.Get("elephant")
-	elephant = tmp.(Animal) // Type assertion.
+	elephant.UnmarshalBinary(tmp)
 
 	if ok == false {
 		t.Error("ok should be true for item stored within the map.")
@@ -75,11 +87,12 @@ func TestHas(t *testing.T) {
 
 	// Get a missing element.
 	if m.Has("Money") == true {
-		t.Error("element shouldn't exists")
+		t.Error("element shouldn't exist")
 	}
 
 	elephant := Animal{"elephant"}
-	m.Set("elephant", elephant)
+	bytes, _ := elephant.MarshalBinary()
+	m.Set("elephant", bytes)
 
 	if m.Has("elephant") == false {
 		t.Error("element exists, expecting Has to return True.")
@@ -90,7 +103,8 @@ func TestRemove(t *testing.T) {
 	m := New()
 
 	monkey := Animal{"monkey"}
-	m.Set("monkey", monkey)
+	bytes, _ := monkey.MarshalBinary()
+	m.Set("monkey", bytes)
 
 	m.Remove("monkey")
 
@@ -112,10 +126,24 @@ func TestRemove(t *testing.T) {
 	m.Remove("noone")
 }
 
+func TestFlush(t *testing.T) {
+	m := New()
+	monkey := Animal{"monkey"}
+	bytes, _ := monkey.MarshalBinary()
+	m.Set("monkey", bytes)
+
+	m.Flush()
+
+	if m.Count() != 0 {
+		t.Errorf("Expecting count to be zero once flushed: %v", m.Count())
+	}
+}
+
 func TestCount(t *testing.T) {
 	m := New()
 	for i := 0; i < 100; i++ {
-		m.Set(strconv.Itoa(i), Animal{strconv.Itoa(i)})
+		bytes, _ := (&Animal{strconv.Itoa(i)}).MarshalBinary()
+		m.Set(strconv.Itoa(i), bytes)
 	}
 
 	if m.Count() != 100 {
@@ -129,8 +157,8 @@ func TestIsEmpty(t *testing.T) {
 	if m.IsEmpty() == false {
 		t.Error("new map should be empty")
 	}
-
-	m.Set("elephant", Animal{"elephant"})
+	bytes, _ := (&Animal{"elephant"}).MarshalBinary()
+	m.Set("elephant", bytes)
 
 	if m.IsEmpty() != false {
 		t.Error("map shouldn't be empty.")
@@ -142,7 +170,8 @@ func TestIterator(t *testing.T) {
 
 	// Insert 100 elements.
 	for i := 0; i < 100; i++ {
-		m.Set(strconv.Itoa(i), Animal{strconv.Itoa(i)})
+		bytes, _ := (&Animal{strconv.Itoa(i)}).MarshalBinary()
+		m.Set(strconv.Itoa(i), bytes)
 	}
 
 	counter := 0
@@ -166,7 +195,8 @@ func TestBufferedIterator(t *testing.T) {
 
 	// Insert 100 elements.
 	for i := 0; i < 100; i++ {
-		m.Set(strconv.Itoa(i), Animal{strconv.Itoa(i)})
+		bytes, _ := (&Animal{strconv.Itoa(i)}).MarshalBinary()
+		m.Set(strconv.Itoa(i), bytes)
 	}
 
 	counter := 0
@@ -195,26 +225,30 @@ func TestConcurrent(t *testing.T) {
 	go func() {
 		for i := 0; i < iterations/2; i++ {
 			// Add item to map.
-			m.Set(strconv.Itoa(i), i)
+			bytes := make([]byte, 4)
+			binary.LittleEndian.PutUint32(bytes, uint32(i))
+			m.Set(strconv.Itoa(i), bytes)
 
 			// Retrieve item from map.
 			val, _ := m.Get(strconv.Itoa(i))
 
 			// Write to channel inserted value.
-			ch <- val.(int)
+			ch <- int(binary.LittleEndian.Uint32(val))
 		} // Call go routine with current index.
 	}()
 
 	go func() {
 		for i := iterations / 2; i < iterations; i++ {
+			bytes := make([]byte, 4)
+			binary.LittleEndian.PutUint32(bytes, uint32(i))
 			// Add item to map.
-			m.Set(strconv.Itoa(i), i)
+			m.Set(strconv.Itoa(i), bytes)
 
 			// Retrieve item from map.
 			val, _ := m.Get(strconv.Itoa(i))
 
 			// Write to channel inserted value.
-			ch <- val.(int)
+			ch <- int(binary.LittleEndian.Uint32(val))
 		} // Call go routine with current index.
 	}()
 
@@ -241,23 +275,5 @@ func TestConcurrent(t *testing.T) {
 		if i != a[i] {
 			t.Error("missing value", i)
 		}
-	}
-}
-
-func TestJsonMarshal(t *testing.T) {
-	SHARD_COUNT = 2
-	defer func() { SHARD_COUNT = 32 }()
-	expected := "{\"a\":1,\"b\":2}"
-	m := New()
-	m.Set("a", 1)
-	m.Set("b", 2)
-	j, err := json.Marshal(m)
-	if err != nil {
-		t.Error(err)
-	}
-
-	if string(j) != expected {
-		t.Error("json", string(j), "differ from expected", expected)
-		return
 	}
 }

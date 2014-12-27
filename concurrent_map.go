@@ -1,7 +1,6 @@
 package cmap
 
 import (
-	"encoding/json"
 	"hash/fnv"
 	"sync"
 )
@@ -16,7 +15,7 @@ type ConcurrentMap []*ConcurrentMapShared
 
 // A "thread" safe string to anything map.
 type ConcurrentMapShared struct {
-	items        map[string]interface{}
+	items        map[string][]byte
 	sync.RWMutex // Read Write mutex, guards access to internal map.
 }
 
@@ -24,7 +23,7 @@ type ConcurrentMapShared struct {
 func New() ConcurrentMap {
 	m := make(ConcurrentMap, SHARD_COUNT)
 	for i := 0; i < SHARD_COUNT; i++ {
-		m[i] = &ConcurrentMapShared{items: make(map[string]interface{})}
+		m[i] = &ConcurrentMapShared{items: make(map[string][]byte)}
 	}
 	return m
 }
@@ -37,7 +36,7 @@ func (m ConcurrentMap) GetShard(key string) *ConcurrentMapShared {
 }
 
 // Sets the given value under the specified key.
-func (m *ConcurrentMap) Set(key string, value interface{}) {
+func (m *ConcurrentMap) Set(key string, value []byte) {
 	// Get map shard.
 	shard := m.GetShard(key)
 	shard.Lock()
@@ -46,7 +45,7 @@ func (m *ConcurrentMap) Set(key string, value interface{}) {
 }
 
 // Retrieves an element from map under given key.
-func (m ConcurrentMap) Get(key string) (interface{}, bool) {
+func (m ConcurrentMap) Get(key string) ([]byte, bool) {
 	// Get shard
 	shard := m.GetShard(key)
 	shard.RLock()
@@ -88,6 +87,12 @@ func (m *ConcurrentMap) Remove(key string) {
 	shard.Lock()
 	defer shard.Unlock()
 	delete(shard.items, key)
+}
+
+func (m ConcurrentMap) Flush() {
+	for i := 0; i < SHARD_COUNT; i++ {
+		m[i] = &ConcurrentMapShared{items: make(map[string][]byte)}
+	}
 }
 
 // Checks if map is empty.
@@ -138,6 +143,7 @@ func (m ConcurrentMap) IterBuffered() <-chan Tuple {
 }
 
 //Reviles ConcurrentMap "private" variables to json marshal.
+/*
 func (m ConcurrentMap) MarshalJSON() ([]byte, error) {
 	// Create a temporary map, which will hold all item spread across shards.
 	tmp := make(map[string]interface{})
@@ -147,7 +153,7 @@ func (m ConcurrentMap) MarshalJSON() ([]byte, error) {
 		tmp[item.Key] = item.Val
 	}
 	return json.Marshal(tmp)
-}
+}*/
 
 // Concurrent map uses Interface{} as its value, therefor JSON Unmarshal
 // will probably won't know which to type to unmarshal into, in such case
