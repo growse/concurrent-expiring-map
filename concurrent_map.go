@@ -103,7 +103,7 @@ func (m *ConcurrentMap) IsEmpty() bool {
 // Used by the Iter & IterBuffered functions to wrap two variables together over a channel,
 type Tuple struct {
 	Key string
-	Val interface{}
+	Val []byte
 }
 
 // Returns an iterator which could be used in a for range loop.
