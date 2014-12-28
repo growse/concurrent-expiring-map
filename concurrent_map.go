@@ -41,7 +41,8 @@ func (m *ConcurrentMap) Set(key string, value []byte) {
 	shard := m.GetShard(key)
 	shard.Lock()
 	defer shard.Unlock()
-	shard.items[key] = value
+	shard.items[key] = make([]byte, len(value))
+	copy(shard.items[key], value)
 }
 
 // Retrieves an element from map under given key.

@@ -2,6 +2,7 @@ package cmap
 
 import (
 	//	"encoding/json"
+	"bytes"
 	"encoding/binary"
 	"sort"
 	"strconv"
@@ -36,13 +37,28 @@ func TestInsert(t *testing.T) {
 	m := New()
 	elephant := Animal{"elephant"}
 	monkey := Animal{"monkey"}
-	bytes, _ := elephant.MarshalBinary()
-	m.Set("elephant", bytes)
-	bytes, _ = monkey.MarshalBinary()
-	m.Set("monkey", bytes)
+	abytes, _ := elephant.MarshalBinary()
+	m.Set("elephant", abytes)
+	abytes, _ = monkey.MarshalBinary()
+	m.Set("monkey", abytes)
+	var buffer bytes.Buffer
+	for i := 0; i < 10000; i++ {
+		buffer.WriteString(strconv.Itoa(i))
+	}
+	verylargeanimal1 := Animal{string(buffer.Bytes())}
+	abytes, _ = verylargeanimal1.MarshalBinary()
+	m.Set("verylargeanimal", abytes)
 
-	if m.Count() != 2 {
-		t.Error("map should contain exactly two elements.")
+	if m.Count() != 3 {
+		t.Error("Map element count. Expected: 3. Actual: %v", m.Count())
+	}
+	value, _ := m.Get("monkey")
+	if string(value) != "monkey" {
+		t.Error("Monkey item error. Expected: 'monkey', Actual: %v", string(value))
+	}
+	value, _ = m.Get("elephant")
+	if string(value) != "elephant" {
+		t.Error("Monkey item error. Expected: 'elephant', Actual: %s", string(value))
 	}
 }
 
