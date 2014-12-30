@@ -1,6 +1,6 @@
-# concurrent map [![Circle CI](https://circleci.com/gh/streamrail/concurrent-map.png?style=badge)](https://circleci.com/gh/streamrail/concurrent-map)
+# concurrent map [![Circle CI](https://circleci.com/gh/growse/concurrent-expiring-map.png?style=badge)](https://circleci.com/gh/growse/concurrent-expiring-map)
 
-Forked from original project: [https://github.com/streamrail/concurrent-map](https://github.com/streamrail/concurrent-map). I've modified the functionality to add item expiry, and the values are now just byte slices - it's getting to be a little bit more like an in-process memcache.
+Forked from original project: [https://github.com/streamrail/concurrent-map](https://github.com/streamrail/concurrent-map). I've modified the functionality to add item expiry, and the values are now just byte slices - it's getting to be a little bit more like an in-process, thread-safe memcache.
 
 Golang map doesn't support concurrent reads and writes, Please see (http://golang.org/doc/faq#atomic_maps and http://blog.golang.org/go-maps-in-action), in case you're using multiple Go routines to read and write concurrently from a map some form of guard mechanism should be in-place.
 
