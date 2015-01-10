@@ -21,8 +21,8 @@ type ConcurrentMapShared struct {
 }
 
 type ConcurrentMapItem struct {
-	Value   []byte
 	Expires time.Time
+	Value   []byte
 }
 
 // Creates a new concurrent map.
